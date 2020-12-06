@@ -28,4 +28,15 @@ void buz() {
         cout << "Error location: " << result.Err() << endl;
     }
 }
+
+Result<type1, string> maybe_failure1(type0 x) {...}
+Result<type2, string> maybe_failure2(type1 x) {...}
+Result<type3, string> maybe_failure3(type2 x) {...}
+Result<...> boo() {
+    auto type3_val = VALUE_OR_RAISE(
+        maybe_failure1(init_value)
+            .bind(maybe_failure2)
+            .bind(maybe_failure3)
+    );
+}
 ```

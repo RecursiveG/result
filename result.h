@@ -17,8 +17,8 @@ struct PureError {
 };
 } // namespace result_internal
 
-template<typename E> inline result_internal::PureError<E> Err(E e) {
-    return result_internal::PureError<E>{e};
+template<typename E> inline result_internal::PureError<E> Err(E&& e) {
+    return result_internal::PureError<E>{std::forward<E>(e)};
 }
 
 using ResultVoid = std::monostate;
@@ -31,6 +31,11 @@ public:
     Result& operator=(const Result<T,E>&) = delete;
     Result& operator=(Result<T,E>&&) = delete;
     // Allows move constructor
+    template<typename AnotherT, typename AnotherE>
+    Result(Result<AnotherT,AnotherE>&& another) noexcept : values_(
+        another.Ok() ?
+            std::variant<T,E>{std::in_place_index<0>, std::move(another).TakeValue()} :
+            std::variant<T,E>{std::in_place_index<1>, std::move(another).TakeErr().e}) {}
     Result(Result<T,E>&& another) noexcept : values_(std::move(another.values_)) {}
 
     // New result creation
@@ -54,7 +59,26 @@ public:
         return {std::get<1>(std::move(values_))};
     };
 
-    
+    // functional stuff
+    template <typename F, typename R = std::result_of_t<F(T)>>
+    [[nodiscard]] Result<R, E> fmap(const F& f) && {
+        if (Ok()) {
+            return f(std::move(*this).TakeValue());
+        } else {
+            return std::move(*this).TakeErr();
+        }
+    }
+
+    template <typename F, typename R = std::result_of_t<F(T)>>
+    // F must also return a Result<..., E>
+    [[nodiscard]] R bind(const F& f) && {
+        if (Ok()) {
+            return f(std::move(*this).TakeValue());
+        } else {
+            return std::move(*this).TakeErr();
+        }
+    }
+
 private:
     template <typename AnotherT, typename AnotherE> friend class Result;
     std::variant<T,E> values_;

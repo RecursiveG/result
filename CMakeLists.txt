@@ -26,5 +26,5 @@ find_package(GTest REQUIRED)
 
 add_executable(result_test
         ${CMAKE_CURRENT_SOURCE_DIR}/result_test.cpp)
-target_link_libraries(result_test PRIVATE result GTest::GTest GTest::Main)
+target_link_libraries(result_test PRIVATE result GTest::GTest GTest::Main -lgmock)
 gtest_discover_tests(result_test)
