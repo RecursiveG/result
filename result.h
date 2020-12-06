@@ -9,6 +9,7 @@
 #include <utility>
 #include <string_view>
 #include <variant>
+#include <sstream>
 
 namespace result_internal {
 template<typename E>
@@ -59,6 +60,48 @@ public:
         return {std::get<1>(std::move(values_))};
     };
 
+    // Equality Result-Result
+    [[nodiscard]] friend bool operator==(const Result<T,E>& lhs, const Result<T,E>& rhs) {
+        return lhs.values_ == rhs.values_;
+    }
+    [[nodiscard]] friend bool operator!=(const Result<T,E>& lhs, const Result<T,E>& rhs) {
+        return lhs.values_ != rhs.values_;
+    }
+    // Equality Result<T,E>-AnotherT
+    template<typename AnotherT>
+    [[nodiscard]] friend bool operator==(const Result<T,E>& lhs, const AnotherT& rhs) {
+        return lhs.Ok() && lhs.Value() == rhs;
+    }
+    template<typename AnotherT>
+    [[nodiscard]] friend bool operator!=(const Result<T,E>& lhs, const AnotherT& rhs) {
+        return !(lhs==rhs);
+    }
+    template<typename AnotherT>
+    [[nodiscard]] friend bool operator==(const AnotherT& lhs, const Result<T,E>& rhs) {
+        return rhs == lhs;
+    }
+    template<typename AnotherT>
+    [[nodiscard]] friend bool operator!=(const AnotherT& lhs, const Result<T,E>& rhs) {
+        return !(rhs == lhs);
+    }
+    // Equality Result<T,E>-AnotherE
+    template<typename AnotherE>
+    [[nodiscard]] friend bool operator==(const Result<T,E>& lhs, const result_internal::PureError<AnotherE>& rhs) {
+        return !lhs.Ok() && lhs.Err() == rhs.e;
+    }
+    template<typename AnotherE>
+    [[nodiscard]] friend bool operator!=(const Result<T,E>& lhs, const result_internal::PureError<AnotherE>& rhs) {
+        return !(lhs==rhs);
+    }
+    template<typename AnotherE>
+    [[nodiscard]] friend bool operator==(const result_internal::PureError<AnotherE>& lhs, const Result<T,E>& rhs) {
+        return rhs == lhs;
+    }
+    template<typename AnotherE>
+    [[nodiscard]] friend bool operator!=(const result_internal::PureError<AnotherE>& lhs, const Result<T,E>& rhs) {
+        return !(rhs == lhs);
+    }
+
     // functional stuff
     template <typename F, typename R = std::result_of_t<F(T)>>
     [[nodiscard]] Result<R, E> fmap(const F& f) && {
@@ -85,6 +128,7 @@ private:
 };
 
 
+
 #define VALUE_OR_RAISE(result_expr)                \
     ({                                             \
         auto result_ = (result_expr);              \
@@ -93,6 +137,33 @@ private:
         }                                          \
         ::std::move(result_).TakeValue();          \
     })
+
+#define NOT_NULL_OR_RAISE(ptr_expr, err_expr)   \
+    ({                                          \
+        auto maybe_nullptr_ = (ptr_expr);       \
+        if (maybe_nullptr_ == nullptr) {        \
+            return Err(err_expr);               \
+        }                                       \
+        maybe_nullptr_;                         \
+    })
+
+#define OPTIONAL_OR_RAISE(optional_expr, err_expr)  \
+    ({                                              \
+        auto maybe_ = (optional_expr);              \
+        if (!maybe_) {                              \
+            return Err(err_expr);                   \
+        }                                           \
+        ::std::move(*maybe_);                       \
+    })
+
+#define RAISE_ERRNO(msg)                        \
+    do {                                        \
+        int e = errno;                          \
+        std::stringstream ss;                   \
+        ss << msg << " (errno=" << e << ", "    \
+           << std::strerror(e) << ")";          \
+        return Err(ss.str());                   \
+    } while(false)
 
 #define ASSIGN_OR_RAISE(var, result_expr) \
     var = VALUE_OR_RAISE(result_expr)

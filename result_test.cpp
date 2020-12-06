@@ -59,20 +59,6 @@ TEST(ResultTest, ChangeValueType) {
     EXPECT_EQ(x.Err(), "bar");
 }
 
-TEST(ResultTest, MacroAssignOrRaise) {
-    auto func_plus_one = [](Result<int, string> in) -> Result<int, string> {
-        ASSIGN_OR_RAISE(int x, std::move(in));
-        return x + 1;
-    };
-    auto x = func_plus_one(5);
-    ASSERT_TRUE(x.Ok());
-    EXPECT_EQ(x.Value(), 6);
-
-    auto y = func_plus_one(Err("boo"));
-    ASSERT_FALSE(y.Ok());
-    EXPECT_EQ(y.Err(), "boo");
-}
-
 // Can we handle move-only types?
 TEST(ResultTest, ReturnUniquePtrValue) {
     uint8_t *addr = nullptr;
@@ -98,6 +84,85 @@ TEST(ResultTest, ReturnUniquePtrError) {
     static_assert(std::is_same<decltype(x), std::unique_ptr<uint8_t[]>>::value);
     EXPECT_NE(addr, nullptr);
     EXPECT_EQ(x.get(), addr);
+}
+
+TEST(ResultTest, EqualityCheckInt) {
+#define EXPECT_EQ_COMM(x,y) {EXPECT_EQ(x,y); EXPECT_EQ(y,x);}
+#define EXPECT_NE_COMM(x,y) {EXPECT_NE(x,y); EXPECT_NE(y,x);}
+
+    Result<int,int> ok = 42;
+    Result<int,int> err = Err(43);
+
+    EXPECT_EQ(ok, ok);
+    EXPECT_EQ(err, err);
+    EXPECT_NE(err, ok);
+    EXPECT_NE(ok, err);
+
+    EXPECT_EQ_COMM(ok, 42);
+    EXPECT_NE_COMM(ok, 43);
+    EXPECT_NE_COMM(ok, Err(42));
+
+    EXPECT_EQ_COMM(err, Err(43));
+    EXPECT_NE_COMM(err, Err(42));
+    EXPECT_NE_COMM(err, 43);
+}
+
+TEST(ResultTest, EqualityCheckString) {
+    Result<string,string> ok = "42";
+    Result<string,string> err = Err("43");
+
+    EXPECT_EQ(ok, ok);
+    EXPECT_EQ(err, err);
+    EXPECT_NE(err, ok);
+    EXPECT_NE(ok, err);
+
+    EXPECT_EQ_COMM(ok, "42");
+    EXPECT_NE_COMM(ok, "43");
+    EXPECT_NE_COMM(ok, Err("42"));
+
+    EXPECT_EQ_COMM(err, Err("43"));
+    EXPECT_NE_COMM(err, Err("42"));
+    EXPECT_NE_COMM(err, "43");
+}
+
+// --------- MACRO tests --------- //
+TEST(ResultTest, MacroAssignOrRaise) {
+    auto func_plus_one = [](Result<int, string> in) -> Result<int, string> {
+        ASSIGN_OR_RAISE(int x, std::move(in));
+        return x + 1;
+    };
+    auto x = func_plus_one(5);
+    ASSERT_TRUE(x.Ok());
+    EXPECT_EQ(x.Value(), 6);
+
+    auto y = func_plus_one(Err("boo"));
+    ASSERT_FALSE(y.Ok());
+    EXPECT_EQ(y.Err(), "boo");
+}
+
+TEST(ResultTest, MacroNotNullOrRaise) {
+    auto func_deref = [](int*p)->Result<int, string> {
+        return *NOT_NULL_OR_RAISE(p, "nullptr");
+    };
+    int i = 42;
+    EXPECT_EQ(func_deref(&i), 42);
+    EXPECT_EQ(func_deref(nullptr), Err("nullptr"));
+}
+
+TEST(ResultTest, MacroOptionalOrRaise) {
+    auto func_deref = [](std::optional<int> o)->Result<int, string> {
+        return OPTIONAL_OR_RAISE(o, "empty optional");
+    };
+    EXPECT_EQ(func_deref(42), 42);
+    EXPECT_EQ(func_deref({}), Err("empty optional"));
+}
+
+TEST(ResultTest, MacroRaiseErrno) {
+    auto func_raise = [](const char* msg)->Result<ResultVoid, string> {
+        RAISE_ERRNO(msg);
+    };
+    errno = 0;
+    EXPECT_EQ(func_raise("this is msg"), Err("this is msg (errno=0, Success)"));
 }
 
 // --------- copy bomb test --------- //
