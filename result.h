@@ -36,7 +36,7 @@ public:
     Result(Result<AnotherT,AnotherE>&& another) noexcept : values_(
         another.Ok() ?
             std::variant<T,E>{std::in_place_index<0>, std::move(another).TakeValue()} :
-            std::variant<T,E>{std::in_place_index<1>, std::move(another).TakeErr().e}) {}
+            std::variant<T,E>{std::in_place_index<1>, std::move(another).TakeError().e}) {}
     Result(Result<T,E>&& another) noexcept : values_(std::move(another.values_)) {}
 
     // New result creation
@@ -54,9 +54,9 @@ public:
     [[nodiscard]] const T& Value() const {return std::get<0>(values_);}
     [[nodiscard]] T TakeValue() && {return std::get<0>(std::move(values_));}
     
-    [[nodiscard]] E& Err() {return std::get<1>(values_);}
-    [[nodiscard]] const E& Err() const {return std::get<1>(values_);}
-    [[nodiscard]] result_internal::PureError<E> TakeErr() && {
+    [[nodiscard]] E& Error() {return std::get<1>(values_);}
+    [[nodiscard]] const E& Error() const {return std::get<1>(values_);}
+    [[nodiscard]] result_internal::PureError<E> TakeError() && {
         return {std::get<1>(std::move(values_))};
     };
 
@@ -87,7 +87,7 @@ public:
     // Equality Result<T,E>-AnotherE
     template<typename AnotherE>
     [[nodiscard]] friend bool operator==(const Result<T,E>& lhs, const result_internal::PureError<AnotherE>& rhs) {
-        return !lhs.Ok() && lhs.Err() == rhs.e;
+        return !lhs.Ok() && lhs.Error() == rhs.e;
     }
     template<typename AnotherE>
     [[nodiscard]] friend bool operator!=(const Result<T,E>& lhs, const result_internal::PureError<AnotherE>& rhs) {
@@ -104,21 +104,21 @@ public:
 
     // functional stuff
     template <typename F, typename R = std::result_of_t<F(T)>>
-    [[nodiscard]] Result<R, E> fmap(const F& f) && {
+    [[nodiscard]] Result<R, E> Fmap(const F& f) && {
         if (Ok()) {
             return f(std::move(*this).TakeValue());
         } else {
-            return std::move(*this).TakeErr();
+            return std::move(*this).TakeError();
         }
     }
 
     template <typename F, typename R = std::result_of_t<F(T)>>
     // F must also return a Result<..., E>
-    [[nodiscard]] R bind(const F& f) && {
+    [[nodiscard]] R Bind(const F& f) && {
         if (Ok()) {
             return f(std::move(*this).TakeValue());
         } else {
-            return std::move(*this).TakeErr();
+            return std::move(*this).TakeError();
         }
     }
 
@@ -129,13 +129,13 @@ private:
 
 
 
-#define VALUE_OR_RAISE(result_expr)                \
-    ({                                             \
-        auto result_ = (result_expr);              \
-        if (!result_.Ok()) {                       \
-            return ::std::move(result_).TakeErr(); \
-        }                                          \
-        ::std::move(result_).TakeValue();          \
+#define VALUE_OR_RAISE(result_expr)                 \
+    ({                                              \
+        auto result_ = (result_expr);               \
+        if (!result_.Ok()) {                        \
+            return ::std::move(result_).TakeError();\
+        }                                           \
+        ::std::move(result_).TakeValue();           \
     })
 
 #define NOT_NULL_OR_RAISE(ptr_expr, err_expr)   \

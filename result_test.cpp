@@ -31,9 +31,9 @@ TEST(ResultTest, ReturnErr) {
     auto i = func_return_int_err();
     auto s = func_return_str_err();
     ASSERT_FALSE(i.Ok());
-    EXPECT_EQ(i.Err(), 42);
+    EXPECT_EQ(i.Error(), 42);
     ASSERT_FALSE(s.Ok());
-    EXPECT_EQ(s.Err(), "foo");
+    EXPECT_EQ(s.Error(), "foo");
 }
 
 // Test when result type is the same as error type
@@ -43,7 +43,7 @@ TEST(ResultTest, SameTandE) {
     ASSERT_TRUE(ok.Ok());
     EXPECT_EQ(ok.Value(), 42);
     ASSERT_FALSE(err.Ok());
-    EXPECT_EQ(err.Err(), 42);
+    EXPECT_EQ(err.Error(), 42);
 }
 
 // Can we raise a Result<A,E> in a function returning Result<A',E> ?
@@ -56,7 +56,7 @@ TEST(ResultTest, ChangeValueType) {
     auto x = func_change_value_type(Err("bar"));
     static_assert(std::is_same<decltype(x), Result<ResultVoid, string>>::value);
     ASSERT_FALSE(x.Ok());
-    EXPECT_EQ(x.Err(), "bar");
+    EXPECT_EQ(x.Error(), "bar");
 }
 
 // Can we handle move-only types?
@@ -80,7 +80,7 @@ TEST(ResultTest, ReturnUniquePtrError) {
         addr = p.get();
         return Err(p);
     };
-    auto x = func_allocate().TakeErr().e;
+    auto x = func_allocate().TakeError().e;
     static_assert(std::is_same<decltype(x), std::unique_ptr<uint8_t[]>>::value);
     EXPECT_NE(addr, nullptr);
     EXPECT_EQ(x.get(), addr);
@@ -144,7 +144,7 @@ TEST(ResultTest, MacroAssignOrRaise) {
 
     auto y = func_plus_one(Err("boo"));
     ASSERT_FALSE(y.Ok());
-    EXPECT_EQ(y.Err(), "boo");
+    EXPECT_EQ(y.Error(), "boo");
 }
 
 TEST(ResultTest, MacroNotNullOrRaise) {
@@ -207,13 +207,13 @@ TEST(ResultTest, NoExtraCopyForValue) {
 TEST(ResultTest, NoExtraCopyForError) {
     auto func_create_bomb = []()->Result<ResultVoid, CopyBomb> {return Err(42);};
     auto func_plus_one = [](Result<ResultVoid, CopyBomb> r) -> Result<ResultVoid, CopyBomb> {
-        r.Err().val_ ++;
+        r.Error().val_ ++;
         ASSIGN_OR_RAISE(auto b [[maybe_unused]], std::move(r));
         return {};
     };
     auto x = func_plus_one(func_create_bomb());
     ASSERT_FALSE(x.Ok());
-    EXPECT_EQ(x.Err().val_, 43);
+    EXPECT_EQ(x.Error().val_, 43);
 }
 
 // --------- Pointer covariant test --------- //
@@ -244,7 +244,7 @@ TEST(ResultTest, ValuePointerCovariant) {
 
     auto y = func_covariant(Err("bbbb"));
     ASSERT_FALSE(y.Ok());
-    EXPECT_EQ(y.Err(), "bbbb");
+    EXPECT_EQ(y.Error(), "bbbb");
 }
 
 TEST(ResultTest, ErrorPointerCovariant) {
@@ -254,7 +254,7 @@ TEST(ResultTest, ErrorPointerCovariant) {
         };
     auto r = func_covariant(Err(std::make_unique<Derived>(42)));
     ASSERT_FALSE(r.Ok());
-    auto ptr_base = r.Err().get();
+    auto ptr_base = r.Error().get();
     static_assert(std::is_same<decltype(ptr_base), Base*>::value);
     auto ptr_derive = dynamic_cast<Derived*>(ptr_base);
     ASSERT_NE(ptr_derive, nullptr);
@@ -277,16 +277,16 @@ TEST(ResultTest, FmapValue) {
     MockCallable<int, int> lambda;
     EXPECT_CALL(lambda, call(42)).WillOnce(Return(66));
 
-    auto x = Result<int, string>{42}.fmap(lambda);
+    auto x = Result<int, string>{42}.Fmap(lambda);
     ASSERT_TRUE(x);
     EXPECT_EQ(x.Value(), 66);
 }
 
 TEST(ResultTest, FmapError) {
     MockCallable<int, int> lambda;
-    auto x = Result<int, string>{Err("bbz")}.fmap(lambda);
+    auto x = Result<int, string>{Err("bbz")}.Fmap(lambda);
     ASSERT_FALSE(x);
-    EXPECT_EQ(x.Err(), "bbz");
+    EXPECT_EQ(x.Error(), "bbz");
 }
 
 TEST(ResultTest, BindOnValue) {
@@ -295,23 +295,23 @@ TEST(ResultTest, BindOnValue) {
     EXPECT_CALL(lambda, call(42)).WillOnce(InvokeWithoutArgs([]()->Result<int, string>{
         return 32;
     }));
-    auto x = Result<int, string>{42}.bind(lambda);
+    auto x = Result<int, string>{42}.Bind(lambda);
     ASSERT_TRUE(x);
     EXPECT_EQ(x.Value(), 32);
 
     EXPECT_CALL(lambda, call(11)).WillOnce(InvokeWithoutArgs([]()->Result<int, string>{
         return Err("err");
     }));
-    auto y = Result<int, string>{11}.bind(lambda);
+    auto y = Result<int, string>{11}.Bind(lambda);
     ASSERT_FALSE(y);
-    EXPECT_EQ(y.Err(), "err");
+    EXPECT_EQ(y.Error(), "err");
 }
 
 TEST(ResultTest, BindOnError) {
     MockCallable<int, Result<int, string>> lambda;
-    auto x = Result<int, string>{Err("err")}.bind(lambda);
+    auto x = Result<int, string>{Err("err")}.Bind(lambda);
     ASSERT_FALSE(x);
-    EXPECT_EQ(x.Err(), "err");
+    EXPECT_EQ(x.Error(), "err");
 }
 
 TEST(ResultTest, BindOnErrorCovariant) {
@@ -319,8 +319,8 @@ TEST(ResultTest, BindOnErrorCovariant) {
     auto ptr = std::make_unique<Derived>(36);
     Derived* addr = ptr.get();
 
-    auto x = Result<int, std::unique_ptr<Derived>>{Err(ptr)}.bind(lambda);
+    auto x = Result<int, std::unique_ptr<Derived>>{Err(ptr)}.Bind(lambda);
     static_assert(std::is_same<decltype(x), Result<int, std::unique_ptr<Base>>>::value);
     ASSERT_FALSE(x);
-    EXPECT_EQ(x.Err().get(), addr);
+    EXPECT_EQ(x.Error().get(), addr);
 }
