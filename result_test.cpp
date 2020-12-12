@@ -92,6 +92,33 @@ TEST(ResultTest, CnstructorForwarding) {
     EXPECT_EQ(func_return_vector(), (std::string{"\0\0\0", 3}));
 }
 
+TEST(ResultTest, TakeValueOr) {
+    EXPECT_EQ((Result<int, int>(42).TakeValueOr(99)), 42);
+    EXPECT_EQ((Result<int, int>(Err(42)).TakeValueOr(99)), 99);
+}
+
+TEST(ResultTest, Expect) {
+    EXPECT_NO_THROW((Result<ResultVoid,ResultVoid>().Expect("")));
+
+    try {
+        Result<ResultVoid,ResultVoid>(Err(ResultVoid{})).Expect("error message");
+        FAIL() << "Exception is not thrown";
+    } catch (const std::runtime_error& ex) {
+        EXPECT_EQ(ex.what(), std::string("error message"));
+    } catch (...) {
+        FAIL() << "An unexpected exception is thrown.";
+    }
+
+    try {
+        Result<ResultVoid,std::string>(Err("error details")).Expect("error message");
+        FAIL() << "Exception is not thrown";
+    } catch (const std::runtime_error& ex) {
+        EXPECT_EQ(ex.what(), std::string("error message (error details)"));
+    } catch (...) {
+        FAIL() << "An unexpected exception is thrown.";
+    }
+}
+
 TEST(ResultTest, EqualityCheckInt) {
 #define EXPECT_EQ_COMM(x,y) {EXPECT_EQ(x,y); EXPECT_EQ(y,x);}
 #define EXPECT_NE_COMM(x,y) {EXPECT_NE(x,y); EXPECT_NE(y,x);}

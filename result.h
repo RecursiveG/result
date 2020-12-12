@@ -53,6 +53,24 @@ public:
     [[nodiscard]] T& Value() {return std::get<0>(values_);}
     [[nodiscard]] const T& Value() const {return std::get<0>(values_);}
     [[nodiscard]] T TakeValue() && {return std::get<0>(std::move(values_));}
+    [[nodiscard]] T TakeValueOr(T alternative) && {
+        if (Ok()) {
+            return std::move(*this).TakeValue();
+        } else {
+            return alternative;
+        }
+    }
+    T Expect(const std::string& msg) && {
+        if (Ok()) {
+            return std::move(*this).TakeValue();
+        } else {
+            if constexpr (std::is_same<E, std::string>::value) {
+                throw std::runtime_error(msg + " (" + Error() + ")");
+            } else {
+                throw std::runtime_error(msg);
+            }
+        }
+    }
     
     [[nodiscard]] E& Error() {return std::get<1>(values_);}
     [[nodiscard]] const E& Error() const {return std::get<1>(values_);}
