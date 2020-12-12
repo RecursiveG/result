@@ -40,8 +40,8 @@ public:
     Result(Result<T,E>&& another) noexcept : values_(std::move(another.values_)) {}
 
     // New result creation
-    template<typename RawT>
-    Result(RawT&& t) : values_(std::in_place_index<0>, std::forward<RawT>(t)) {}
+    template<typename... Args>
+    Result(Args&&... init_list) : values_(std::in_place_index<0>, std::forward<Args>(init_list)...) {}
     template<typename RawE>
     Result(result_internal::PureError<RawE>&& wrapped_e) :
         values_(std::in_place_index<1>, std::move(wrapped_e.e)) {}

@@ -51,7 +51,7 @@ TEST(ResultTest, ChangeValueType) {
     auto func_change_value_type = [](Result<int, string> r)->Result<ResultVoid, string> {
         ASSIGN_OR_RAISE(auto x [[maybe_unused]], std::move(r));
         static_assert(std::is_same<decltype(x), int>::value);
-        return ResultVoid{};
+        return {};
     };
     auto x = func_change_value_type(Err("bar"));
     static_assert(std::is_same<decltype(x), Result<ResultVoid, string>>::value);
@@ -84,6 +84,13 @@ TEST(ResultTest, ReturnUniquePtrError) {
     static_assert(std::is_same<decltype(x), std::unique_ptr<uint8_t[]>>::value);
     EXPECT_NE(addr, nullptr);
     EXPECT_EQ(x.get(), addr);
+}
+
+TEST(ResultTest, CnstructorForwarding) {
+    auto func_return_vector = []()->Result<std::string, ResultVoid> {
+        return {"\0\0\0", 3};
+    };
+    EXPECT_EQ(func_return_vector(), (std::string{"\0\0\0", 3}));
 }
 
 TEST(ResultTest, EqualityCheckInt) {
@@ -202,7 +209,7 @@ TEST(ResultTest, NoExtraCopyForError) {
     auto func_plus_one = [](Result<ResultVoid, CopyBomb> r) -> Result<ResultVoid, CopyBomb> {
         r.Err().val_ ++;
         ASSIGN_OR_RAISE(auto b [[maybe_unused]], std::move(r));
-        return ResultVoid{};
+        return {};
     };
     auto x = func_plus_one(func_create_bomb());
     ASSERT_FALSE(x.Ok());
