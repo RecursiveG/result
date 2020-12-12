@@ -5,7 +5,6 @@
 
 #include <cinttypes>
 #include <memory>
-#include <stdexcept>
 #include <string>
 
 using std::string;
@@ -80,10 +79,10 @@ TEST(ResultTest, ReturnUniquePtrError) {
         addr = p.get();
         return Err(p);
     };
-    auto x = func_allocate().TakeError().e;
-    static_assert(std::is_same<decltype(x), std::unique_ptr<uint8_t[]>>::value);
+    auto e = func_allocate().TakeError();
+    static_assert(std::is_same<decltype(e), std::unique_ptr<uint8_t[]>>::value);
     EXPECT_NE(addr, nullptr);
-    EXPECT_EQ(x.get(), addr);
+    EXPECT_EQ(e.get(), addr);
 }
 
 TEST(ResultTest, CnstructorForwarding) {

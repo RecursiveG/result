@@ -36,7 +36,7 @@ public:
     Result(Result<AnotherT,AnotherE>&& another) noexcept : values_(
         another.Ok() ?
             std::variant<T,E>{std::in_place_index<0>, std::move(another).TakeValue()} :
-            std::variant<T,E>{std::in_place_index<1>, std::move(another).TakeError().e}) {}
+            std::variant<T,E>{std::in_place_index<1>, std::move(another).TakeError()}) {}
     Result(Result<T,E>&& another) noexcept : values_(std::move(another.values_)) {}
 
     // New result creation
@@ -56,8 +56,8 @@ public:
     
     [[nodiscard]] E& Error() {return std::get<1>(values_);}
     [[nodiscard]] const E& Error() const {return std::get<1>(values_);}
-    [[nodiscard]] result_internal::PureError<E> TakeError() && {
-        return {std::get<1>(std::move(values_))};
+    [[nodiscard]] E TakeError() && {
+        return std::get<1>(std::move(values_));
     };
 
     // Equality Result-Result
@@ -108,7 +108,7 @@ public:
         if (Ok()) {
             return f(std::move(*this).TakeValue());
         } else {
-            return std::move(*this).TakeError();
+            return Err(std::move(*this).TakeError());
         }
     }
 
@@ -118,7 +118,7 @@ public:
         if (Ok()) {
             return f(std::move(*this).TakeValue());
         } else {
-            return std::move(*this).TakeError();
+            return Err(std::move(*this).TakeError());
         }
     }
 
@@ -129,13 +129,13 @@ private:
 
 
 
-#define VALUE_OR_RAISE(result_expr)                 \
-    ({                                              \
-        auto result_ = (result_expr);               \
-        if (!result_.Ok()) {                        \
-            return ::std::move(result_).TakeError();\
-        }                                           \
-        ::std::move(result_).TakeValue();           \
+#define VALUE_OR_RAISE(result_expr)                     \
+    ({                                                  \
+        auto result_ = (result_expr);                   \
+        if (!result_.Ok()) {                            \
+            return Err(std::move(result_).TakeError()); \
+        }                                               \
+        std::move(result_).TakeValue();                 \
     })
 
 #define NOT_NULL_OR_RAISE(ptr_expr, err_expr)   \
