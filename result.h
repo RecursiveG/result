@@ -27,11 +27,14 @@ using ResultVoid = std::monostate;
 template<typename T, typename E>
 class Result {
 public:
-    // No copy or assignment
-    Result(const Result<T,E>&) = delete;
-    Result& operator=(const Result<T,E>&) = delete;
-    Result& operator=(Result<T,E>&&) = delete;
-    // Allows move constructor
+    // Copy assignment & construction
+    Result(const Result<T,E>& another) : values_(another.values_) {}
+    Result& operator=(const Result<T,E>& another) {
+        values_ = another.values_;
+        return *this;
+    }
+
+    // Move constructor
     template<typename AnotherT, typename AnotherE>
     Result(Result<AnotherT,AnotherE>&& another) noexcept : values_(
         another.Ok() ?
